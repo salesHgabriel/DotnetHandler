@@ -1,0 +1,40 @@
+name: Publish Nuget Packages
+
+on:
+  push:
+    tags:
+      - '*.*.**'
+jobs:
+  publish_nuget_package:
+    name: Publish DotnetHandler
+    runs-on: ubuntu-latest
+    steps:
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v2
+        with:
+          dotnet-version: 10.0.x
+      
+      - uses: actions/checkout@v4
+      - name: Set Version 
+        run: |
+          sed -i -e 's/1.1.1/${{github.ref_name}}/' ./src/DotnetHandler/DotnetHandler.csproj
+
+      - name: Restore 
+        run: dotnet restore ./src/DotnetHandler/DotnetHandler.csproj
+
+      - name: Build 
+        run: dotnet build --no-restore  ./src/DotnetHandler/DotnetHandler.csproj
+
+      - name: Pack 
+        run: |
+          dotnet pack ./src/DotnetHandler/DotnetHandler.csproj -c Release -o output-client
+
+
+      - name: Publish Client to Nuget.Org
+        run: |
+          dotnet nuget push output-client/*.nupkg -k ${{ secrets.NUGET_API_KEY_DOTNETHANDLER }} -s https://api.nuget.org/v3/index.json --skip-duplicate
+      
+    
+      
+      

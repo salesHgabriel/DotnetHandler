@@ -1,0 +1,34 @@
+name: Build and Tests
+
+on: pull_request
+
+jobs:
+  build_tests_nuget_package:
+    name: Build and Tests DotnetHandler
+    runs-on: ubuntu-latest
+    steps:
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v2
+        with:
+          dotnet-version: 10.0.x
+      
+      
+
+      - uses: actions/checkout@v4
+
+      - name: Restore Package
+        run: dotnet restore ./src/DotnetHandler/DotnetHandler.csproj
+
+      - name: Build Package
+        run: dotnet build --no-restore  ./src/DotnetHandler/DotnetHandler.csproj
+
+      - name: Clean
+        run: dotnet clean
+
+      - name: Run Unit Tests Package
+        run: dotnet test ./tests/DotnetHandler.Test/DotnetHandler.Test.csproj
+      
+      
+    
+      
