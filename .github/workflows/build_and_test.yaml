@@ -27,7 +27,7 @@ jobs:
         run: dotnet clean
 
       - name: Run Unit Tests Package
-        run: dotnet test ./tests/DotnetHandler.Test/DotnetHandler.Test.csproj
+        run: dotnet test ./tests/DotnetHandler.Tests/DotnetHandler.Tests.csproj
       
       
     
