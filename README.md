@@ -29,7 +29,7 @@ A lightweight, modular .NET Standard library that provides request/response hand
 
 ## Installation
 
-Add a project reference to `DotnetHandler` (NuGet package coming soon).
+[![Nuget](https://img.shields.io/nuget/v/DotnetHandler)](https://www.nuget.org/packages/DotnetHandler/)
 
 ---
 
