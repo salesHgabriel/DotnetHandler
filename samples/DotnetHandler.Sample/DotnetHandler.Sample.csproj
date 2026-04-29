@@ -9,6 +9,10 @@
 
   <ItemGroup>
     <ProjectReference Include="..\..\src\DotnetHandler\DotnetHandler.csproj" />
+    <ProjectReference Include="..\..\src\DotnetHandler.SourceGenerators\DotnetHandler.SourceGenerators.csproj"
+                      ReferenceOutputAssembly="false"
+                      SetTargetFramework="TargetFramework=netstandard2.0"
+                      OutputItemType="Analyzer" />
   </ItemGroup>
 
   <ItemGroup>

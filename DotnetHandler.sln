@@ -5,6 +5,8 @@ VisualStudioVersion = 17.0.31903.59
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "DotnetHandler", "src\DotnetHandler\DotnetHandler.csproj", "{A1B2C3D4-E5F6-7890-ABCD-EF1234567890}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "DotnetHandler.SourceGenerators", "src\DotnetHandler.SourceGenerators\DotnetHandler.SourceGenerators.csproj", "{D4E5F6A7-B8C9-0123-DEF0-123456789003}"
+EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "DotnetHandler.Tests", "tests\DotnetHandler.Tests\DotnetHandler.Tests.csproj", "{B2C3D4E5-F6A7-8901-BCDE-F12345678901}"
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "DotnetHandler.Sample", "samples\DotnetHandler.Sample\DotnetHandler.Sample.csproj", "{C3D4E5F6-A7B8-9012-CDEF-012345678902}"
@@ -41,5 +43,9 @@ Global
 		{A77B7EC8-B0BE-4E0D-96F1-EBA58A86BC1E}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{A77B7EC8-B0BE-4E0D-96F1-EBA58A86BC1E}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{A77B7EC8-B0BE-4E0D-96F1-EBA58A86BC1E}.Release|Any CPU.Build.0 = Release|Any CPU
+		{D4E5F6A7-B8C9-0123-DEF0-123456789003}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{D4E5F6A7-B8C9-0123-DEF0-123456789003}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{D4E5F6A7-B8C9-0123-DEF0-123456789003}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{D4E5F6A7-B8C9-0123-DEF0-123456789003}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 EndGlobal
