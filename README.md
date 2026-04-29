@@ -21,8 +21,9 @@ A lightweight, modular .NET Standard library that provides request/response hand
 | **Validation** | Automatic, opt-in per-handler via `IValidationHandler<TRequest>` |
 | **Pipeline** | Ordered middleware via `IPipelineBehavior<TRequest, TResponse>` |
 | **Events** | Fire-and-forget pub/sub via `IEvent` / `IEventListener<TEvent>` |
-| **Fluent API** | Coravel-style registration with `AddApplication(...)` |
-| **Assembly scanning** | MediatR-style auto-discovery via `FromAssembly(...)` |
+| **Fluent API** | Explicit registration with `AddDotnetHandler(...)` |
+| **Source Generator** | Zero-reflection registration via `UseGeneratedHandlers()` |
+| **Assembly scanning** | Reflection-based auto-discovery via `FromAssembly(...)` (legacy) |
 | **Modular** | Use only the modules you need |
 
 ---
@@ -63,6 +64,21 @@ public class CreateUserHandler
 
 ### 3. Register
 
+**Recommended — source generator (zero reflection):**
+
+```csharp
+// All IRequestHandler<,> and IEventListener<> in this assembly are registered automatically.
+builder.Services.AddDotnetHandler(app =>
+{
+    app.UseGeneratedHandlers();
+
+    // Pipeline behaviors are always explicit (open-generic supported)
+    app.Pipeline(p => p.Use(typeof(LoggingBehavior<,>)));
+});
+```
+
+**Alternative — fluent (explicit, no generator needed):**
+
 ```csharp
 builder.Services.AddDotnetHandler(app =>
 {
@@ -72,9 +88,7 @@ builder.Services.AddDotnetHandler(app =>
     app.Events(e =>
         e.Register<UserCreatedEvent>().Subscribe<SendWelcomeEmailListener>());
 
-    // Open-generic behaviors use the Type overload
-    app.Pipeline(p =>
-        p.Use(typeof(LoggingBehavior<,>)));
+    app.Pipeline(p => p.Use(typeof(LoggingBehavior<,>)));
 });
 ```
 
@@ -152,7 +166,43 @@ Validation runs automatically **before** the handler and pipeline when the handl
 
 ---
 
-## Assembly Scanning
+## Source Generator
+
+The source generator ships with the package. It runs at compile time and emits a `UseGeneratedHandlers()` extension method for your assembly — no reflection at runtime.
+
+**What it discovers automatically:**
+
+| Type | Registered via |
+|---|---|
+| `IRequestHandler<TRequest, TResponse>` | `app.Handlers(...)` |
+| `IEventListener<TEvent>` | `app.Events(...)` |
+
+**What must remain explicit:**
+
+| Type | Why |
+|---|---|
+| `IPipelineBehavior<,>` | Order matters — always declare in `app.Pipeline(...)` |
+| FluentValidation validators | External dependency, not a DotnetHandler abstraction |
+
+> Pipeline behaviors and external validators are not auto-registered by design.
+
+### Usage
+
+```csharp
+builder.Services.AddDotnetHandler(app =>
+{
+    app.UseGeneratedHandlers();
+    app.Pipeline(p => p.Use(typeof(LoggingBehavior<,>)));
+});
+```
+
+The generated code is emitted to `obj/{config}/{tfm}/generated/DotnetHandler.SourceGenerators/.../*.g.cs` and is visible in your IDE.
+
+---
+
+## Assembly Scanning (legacy)
+
+Runtime reflection fallback — useful for plugin scenarios or when source generators are unavailable:
 
 ```csharp
 builder.Services.AddDotnetHandler(app =>
@@ -160,7 +210,7 @@ builder.Services.AddDotnetHandler(app =>
 ```
 
 **Auto-registers:** `IRequestHandler<,>`, `IEventListener<>`  
-**Does NOT auto-register:** pipeline behaviors, validation behaviors (explicit only)
+**Does NOT auto-register:** pipeline behaviors (always explicit)
 
 
 ## Pipeline Behaviors
@@ -199,16 +249,18 @@ ValidationResult.Failure("Error 1", "Error 2");
 ```
 DotnetHandler.sln
 ├── src/
-│   └── DotnetHandler/              # Core library (netstandard2.1)
-│       ├── Abstractions/           # Interfaces
-│       ├── Core/                   # Dispatcher implementation
-│       ├── Validation/             # ValidationResult, ValidationException
-│       ├── Registration/           # Fluent API, ApplicationBuilder
-│       └── Internal/               # Assembly scanner
+│   ├── DotnetHandler/                  # Core library (netstandard2.1)
+│   │   ├── Abstractions/               # Interfaces
+│   │   ├── Core/                       # Dispatcher implementation
+│   │   ├── Validation/                 # ValidationResult, ValidationException
+│   │   ├── Registration/               # Fluent API, ApplicationBuilder
+│   │   └── Internal/                   # Assembly scanner (legacy)
+│   └── DotnetHandler.SourceGenerators/ # Roslyn source generator (netstandard2.0)
 ├── tests/
-│   └── DotnetHandler.Tests/        # xUnit tests (net8.0)
+│   ├── DotnetHandler.Tests/            # Core unit tests (net10.0)
+│   └── DotnetHandler.Sample.Tests/     # Integration tests for sample (net10.0)
 └── samples/
-    └── DotnetHandler.Sample/       # Minimal API sample (net8.0)
+    └── DotnetHandler.Sample/           # Minimal API sample (net10.0)
 ```
 
 ---

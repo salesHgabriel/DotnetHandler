@@ -1,4 +1,5 @@
 using DotnetHandler.Abstractions;
+using DotnetHandler.Generated;
 using DotnetHandler.Registration;
 using DotnetHandler.Validation;
 using FluentValidation;
@@ -153,15 +154,7 @@ public static class SampleServiceFactory
 
         services.AddDotnetHandler(app =>
         {
-            app.Handlers(h =>
-            {
-                h.Register<CreateUserCommand, UserResponse>().HandledBy<CreateUserHandler>();
-                h.Register<GetUserQuery, UserResponse?>().HandledBy<GetUserHandler>();
-                h.Register<GetUsersQuery, List<UserResponse>>().HandledBy<GetUsersHandler>();
-                h.Register<UpdateUserCommand, UserResponse?>().HandledBy<UpdateUserHandler>();
-                h.Register<DeleteUserCommand, bool>().HandledBy<DeleteUserHandler>();
-            });
-
+            app.UseGeneratedHandlers();
             app.Pipeline(p => p.Use(typeof(FluentValidationBehavior<,>)));
         });
 

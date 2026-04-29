@@ -1,4 +1,5 @@
 using DotnetHandler.Abstractions;
+using DotnetHandler.Generated;
 using DotnetHandler.Registration;
 using DotnetHandler.Tests.Helpers;
 using Microsoft.Extensions.DependencyInjection;
@@ -33,20 +34,19 @@ public class RegistrationTests
     }
 
     [Fact]
-    public async Task AssemblyRegistration_DiscoversBothHandlersAndListeners()
+    public async Task GeneratedRegistration_DiscoversBothHandlersAndListeners()
     {
         EmailListener.Received.Clear();
 
         var provider = ServiceProviderFactory.Build(s =>
-            s.AddDotnetHandler(app =>
-                app.FromAssembly(typeof(PingHandler).Assembly)));
+            s.AddDotnetHandler(app => app.UseGeneratedHandlers()));
 
         var dispatcher = provider.GetRequiredService<IDispatcher>();
 
-        var result = await dispatcher.Send(new PingRequest("assembly"));
+        var result = await dispatcher.Send(new PingRequest("generated"));
         await dispatcher.Publish(new UserRegisteredEvent("carl"));
 
-        Assert.Equal("Pong: assembly", result);
+        Assert.Equal("Pong: generated", result);
         Assert.Contains("email:carl", EmailListener.Received);
     }
 
