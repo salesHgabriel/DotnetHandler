@@ -5,7 +5,11 @@ using Microsoft.EntityFrameworkCore;
 
 namespace DotnetHandler.Sample.Handlers;
 
-public record GetUsersQuery : IRequest<List<UserResponse>>;
+public record GetUsersQuery : IRequest<List<UserResponse>>, ICacheableRequest<List<UserResponse>>
+{
+    public string CacheKey => "users:all";
+    public TimeSpan? CacheDuration => TimeSpan.FromMinutes(1);
+}
 
 public class GetUsersHandler(AppDbContext db) : IRequestHandler<GetUsersQuery, List<UserResponse>>
 {

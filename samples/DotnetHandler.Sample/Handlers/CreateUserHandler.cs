@@ -5,7 +5,8 @@ using DotnetHandler.Sample.Models;
 
 namespace DotnetHandler.Sample.Handlers;
 
-public record CreateUserCommand(string Name, string Email) : IRequest<UserResponse>;
+public record CreateUserCommand(string Name, string Email, string IdempotencyKey = "")
+    : IRequest<UserResponse>, IIdempotentRequest;
 
 public class CreateUserHandler(AppDbContext db, IDispatcher dispatcher)
     : IRequestHandler<CreateUserCommand, UserResponse>

@@ -1,16 +1,21 @@
 using DotnetHandler.Abstractions;
+using DotnetHandler.Authorization;
 using DotnetHandler.Sample.Handlers;
 using DotnetHandler.Validation;
 
 namespace DotnetHandler.Sample.Http;
 
+// Separate body record so the Idempotency-Key header doesn't bleed into JSON binding.
+internal record CreateUserBody(string Name, string Email);
+
 public static class UsersEndpoint
 {
     public static void RegisterUsersEndpoints(this WebApplication app)
     {
-
-        app.MapPost("/users", async (CreateUserCommand cmd, IDispatcher dispatcher) =>
+        app.MapPost("/users", async (CreateUserBody body, IDispatcher dispatcher, HttpContext httpContext) =>
         {
+            var idempotencyKey = httpContext.Request.Headers["Idempotency-Key"].FirstOrDefault() ?? string.Empty;
+            var cmd = new CreateUserCommand(body.Name, body.Email, idempotencyKey);
             try
             {
                 var result = await dispatcher.Send(cmd);
@@ -46,8 +51,15 @@ public static class UsersEndpoint
 
         app.MapDelete("/users/{id:guid}", async (Guid id, IDispatcher dispatcher) =>
         {
-            var deleted = await dispatcher.Send(new DeleteUserCommand(id));
-            return deleted ? Results.NoContent() : Results.NotFound();
+            try
+            {
+                var deleted = await dispatcher.Send(new DeleteUserCommand(id));
+                return deleted ? Results.NoContent() : Results.NotFound();
+            }
+            catch (UnauthorizedException ex)
+            {
+                return Results.Problem(ex.Message, statusCode: StatusCodes.Status403Forbidden);
+            }
         });
     }
 }

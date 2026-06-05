@@ -1,9 +1,10 @@
 @baseUrl = https://localhost:7205
-@userId = D681C103-19F9-4E36-A736-59942F623EEE
+@userId = 9889bc70-0297-417a-9136-87b7e1c97071
 
 ### Create user
 POST {{baseUrl}}/users
 Content-Type: application/json
+Idempotency-Key: john-do2
 
 {
   "name": "John Doe 2",
@@ -27,3 +28,4 @@ Content-Type: application/json
 
 ### Remove user
 DELETE {{baseUrl}}/users/{{userId}}
+X-Permissions: users:delete

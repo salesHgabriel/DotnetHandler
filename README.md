@@ -21,6 +21,9 @@ A lightweight, modular .NET Standard library that provides request/response hand
 | **Validation** | Automatic, opt-in per-handler via `IValidationHandler<TRequest>` |
 | **Pipeline** | Ordered middleware via `IPipelineBehavior<TRequest, TResponse>` |
 | **Events** | Fire-and-forget pub/sub via `IEvent` / `IEventListener<TEvent>` |
+| **Cache Behavior** | Opt-in response caching via `ICacheableRequest<TResponse>` |
+| **Permission Behavior** | Opt-in authorization via `IAuthorizedRequest` + `IPermissionContext` |
+| **Idempotency Behavior** | Duplicate-request prevention via `IIdempotentRequest` |
 | **Fluent API** | Explicit registration with `AddDotnetHandler(...)` |
 | **Source Generator** | Zero-reflection registration via `UseGeneratedHandlers()` |
 | **Assembly scanning** | Reflection-based auto-discovery via `FromAssembly(...)` (legacy) |
@@ -155,6 +158,35 @@ public interface IValidationHandler<TRequest>
 
 Validation runs automatically **before** the handler and pipeline when the handler also implements `IValidationHandler<TRequest>`. A `ValidationException` is thrown on failure — no manual wiring needed.
 
+### Behavior contracts
+
+```csharp
+// Opt-in response caching
+public interface ICacheableRequest<TResponse>
+{
+    string CacheKey { get; }
+    TimeSpan? CacheDuration { get; }
+}
+
+// Opt-in authorization
+public interface IAuthorizedRequest
+{
+    IEnumerable<string> RequiredPermissions { get; }
+}
+
+// Current-user permission check (implement in your application)
+public interface IPermissionContext
+{
+    bool HasPermission(string permission);
+}
+
+// Opt-in idempotency
+public interface IIdempotentRequest
+{
+    string IdempotencyKey { get; }
+}
+```
+
 ---
 
 ## Dispatcher Behaviour
@@ -228,6 +260,144 @@ app.Pipeline(p => p.Use(typeof(LoggingBehavior<,>)));
 ```
 
 Behaviors execute in registration order (first registered = outermost wrapper).
+
+---
+
+## Cache Behavior
+
+Mark a query as cacheable by implementing `ICacheableRequest<TResponse>`:
+
+```csharp
+public record GetUsersQuery : IRequest<List<User>>, ICacheableRequest<List<User>>
+{
+    public string CacheKey => "users:all";
+    public TimeSpan? CacheDuration => TimeSpan.FromMinutes(1); // null = 5 min default
+}
+```
+
+Implement the behavior using `IMemoryCache` (or any cache abstraction):
+
+```csharp
+public class CacheBehavior<TRequest, TResponse>(IMemoryCache cache)
+    : IPipelineBehavior<TRequest, TResponse>
+{
+    public async Task<TResponse> HandleAsync(TRequest request, Func<Task<TResponse>> next)
+    {
+        if (request is not ICacheableRequest<TResponse> cacheable)
+            return await next();
+
+        if (cache.TryGetValue(cacheable.CacheKey, out TResponse? cached))
+            return cached!;
+
+        var result = await next();
+        cache.Set(cacheable.CacheKey, result, cacheable.CacheDuration ?? TimeSpan.FromMinutes(5));
+        return result;
+    }
+}
+```
+
+Register:
+
+```csharp
+builder.Services.AddMemoryCache();
+app.Pipeline(p => p.Use(typeof(CacheBehavior<,>)));
+```
+
+Non-cacheable requests pass through transparently.
+
+---
+
+## Permission Behavior
+
+Implement `IPermissionContext` to provide the current user's permissions:
+
+```csharp
+public interface IPermissionContext
+{
+    bool HasPermission(string permission);
+}
+```
+
+Mark a command as requiring authorization by implementing `IAuthorizedRequest`:
+
+```csharp
+public record DeleteUserCommand(Guid Id) : IRequest<bool>, IAuthorizedRequest
+{
+    public IEnumerable<string> RequiredPermissions => ["users:delete"];
+}
+```
+
+Implement the behavior:
+
+```csharp
+public class PermissionBehavior<TRequest, TResponse>(IPermissionContext context)
+    : IPipelineBehavior<TRequest, TResponse>
+{
+    public async Task<TResponse> HandleAsync(TRequest request, Func<Task<TResponse>> next)
+    {
+        if (request is not IAuthorizedRequest authorized)
+            return await next();
+
+        foreach (var permission in authorized.RequiredPermissions)
+        {
+            if (!context.HasPermission(permission))
+                throw new UnauthorizedException(permission);
+        }
+
+        return await next();
+    }
+}
+```
+
+`UnauthorizedException` exposes the `Permission` property. Catch it at the endpoint to return 403:
+
+```csharp
+app.MapDelete("/users/{id:guid}", async (Guid id, IDispatcher dispatcher) =>
+{
+    try { ... }
+    catch (UnauthorizedException ex)
+    {
+        return Results.Problem(ex.Message, statusCode: 403);
+    }
+});
+```
+
+---
+
+## Idempotency Behavior
+
+Mark a command as idempotent by implementing `IIdempotentRequest`:
+
+```csharp
+public record CreateUserCommand(string Name, string Email, string IdempotencyKey = "")
+    : IRequest<UserResponse>, IIdempotentRequest;
+```
+
+The client sends the key in the `Idempotency-Key` header; the endpoint injects it into the command before dispatching. Repeated requests with the same key return the stored result without re-executing the handler.
+
+Implement the behavior:
+
+```csharp
+public class IdempotencyBehavior<TRequest, TResponse>(IMemoryCache cache)
+    : IPipelineBehavior<TRequest, TResponse>
+{
+    public async Task<TResponse> HandleAsync(TRequest request, Func<Task<TResponse>> next)
+    {
+        if (request is not IIdempotentRequest idempotent || string.IsNullOrWhiteSpace(idempotent.IdempotencyKey))
+            return await next();
+
+        var key = $"idempotency:{idempotent.IdempotencyKey}";
+        if (cache.TryGetValue(key, out TResponse? stored))
+            return stored!;
+
+        var result = await next();
+        cache.Set(key, result, TimeSpan.FromHours(24));
+        return result;
+    }
+}
+```
+
+Requests with a blank `IdempotencyKey` bypass the behavior and always execute.
 
 ---
 

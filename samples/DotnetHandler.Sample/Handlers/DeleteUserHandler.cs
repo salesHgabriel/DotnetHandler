@@ -5,7 +5,10 @@ using Microsoft.EntityFrameworkCore;
 
 namespace DotnetHandler.Sample.Handlers;
 
-public record DeleteUserCommand(Guid Id) : IRequest<bool>;
+public record DeleteUserCommand(Guid Id) : IRequest<bool>, IAuthorizedRequest
+{
+    public IEnumerable<string> RequiredPermissions => ["users:delete"];
+}
 
 public class DeleteUserHandler(AppDbContext db, IDispatcher dispatcher)
     : IRequestHandler<DeleteUserCommand, bool>

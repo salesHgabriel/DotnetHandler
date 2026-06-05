@@ -1,9 +1,11 @@
+using DotnetHandler.Abstractions;
 using DotnetHandler.Generated;
 using DotnetHandler.Registration;
 using DotnetHandler.Sample.Behaviors;
 using DotnetHandler.Sample.Data;
 using DotnetHandler.Sample.Handlers;
 using DotnetHandler.Sample.Http;
+using DotnetHandler.Sample.Services;
 using DotnetHandler.Sample.Validators;
 using FluentValidation;
 using Microsoft.EntityFrameworkCore;
@@ -21,6 +23,10 @@ builder.Host.UseSerilog();
 builder.Services.AddDbContext<AppDbContext>(opt =>
     opt.UseSqlite("Data Source=users.db"));
 
+builder.Services.AddMemoryCache();
+builder.Services.AddHttpContextAccessor();
+builder.Services.AddScoped<IPermissionContext, CurrentUserPermissionContext>();
+
 builder.Services.AddScoped<IValidator<CreateUserCommand>, CreateUserCommandValidator>();
 builder.Services.AddScoped<IValidator<UpdateUserCommand>, UpdateUserCommandValidator>();
 
@@ -30,6 +36,9 @@ builder.Services.AddDotnetHandler(app =>
 
     app.Pipeline(p =>
         p.Use(typeof(LoggingBehavior<,>))
+         .Use(typeof(PermissionBehavior<,>))
+         .Use(typeof(IdempotencyBehavior<,>))
+         .Use(typeof(CacheBehavior<,>))
          .Use(typeof(FluentValidationBehavior<,>)));
 });
 
