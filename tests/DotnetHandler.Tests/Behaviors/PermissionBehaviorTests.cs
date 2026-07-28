@@ -11,10 +11,10 @@ public class PermissionBehaviorTests
     private class PermissionBehavior<TRequest, TResponse>(IPermissionContext context)
         : IPipelineBehavior<TRequest, TResponse>
     {
-        public async Task<TResponse> HandleAsync(TRequest request, Func<Task<TResponse>> next)
+        public async Task<TResponse> HandleAsync(TRequest request, Func<CancellationToken, Task<TResponse>> next, CancellationToken cancellationToken = default)
         {
             if (request is not IAuthorizedRequest authorized)
-                return await next();
+                return await next(cancellationToken);
 
             foreach (var permission in authorized.RequiredPermissions)
             {
@@ -22,7 +22,7 @@ public class PermissionBehaviorTests
                     throw new UnauthorizedException(permission);
             }
 
-            return await next();
+            return await next(cancellationToken);
         }
     }
 
@@ -49,7 +49,7 @@ public class PermissionBehaviorTests
         var behavior = new PermissionBehavior<OpenRequest, string>(new StubPermissionContext());
         var calls = 0;
 
-        await behavior.HandleAsync(new OpenRequest(), () => { calls++; return Task.FromResult("ok"); });
+        await behavior.HandleAsync(new OpenRequest(), _ => { calls++; return Task.FromResult("ok"); });
 
         Assert.Equal(1, calls);
     }
@@ -62,7 +62,7 @@ public class PermissionBehaviorTests
 
         var result = await behavior.HandleAsync(
             new SecuredRequest(["users:read"]),
-            () => { calls++; return Task.FromResult("ok"); });
+            _ => { calls++; return Task.FromResult("ok"); });
 
         Assert.Equal(1, calls);
         Assert.Equal("ok", result);
@@ -74,7 +74,7 @@ public class PermissionBehaviorTests
         var behavior = new PermissionBehavior<SecuredRequest, string>(new StubPermissionContext());
 
         await Assert.ThrowsAsync<UnauthorizedException>(() =>
-            behavior.HandleAsync(new SecuredRequest(["users:delete"]), () => Task.FromResult("ok")));
+            behavior.HandleAsync(new SecuredRequest(["users:delete"]), _ => Task.FromResult("ok")));
     }
 
     [Fact]
@@ -85,7 +85,7 @@ public class PermissionBehaviorTests
         var ex = await Assert.ThrowsAsync<UnauthorizedException>(() =>
             behavior.HandleAsync(
                 new SecuredRequest(["users:read", "users:delete"]),
-                () => Task.FromResult("ok")));
+                _ => Task.FromResult("ok")));
 
         Assert.Equal("users:delete", ex.Permission);
     }
@@ -99,7 +99,7 @@ public class PermissionBehaviorTests
 
         await behavior.HandleAsync(
             new SecuredRequest(["users:read", "users:write"]),
-            () => { calls++; return Task.FromResult("ok"); });
+            _ => { calls++; return Task.FromResult("ok"); });
 
         Assert.Equal(1, calls);
     }
@@ -112,7 +112,7 @@ public class PermissionBehaviorTests
 
         await behavior.HandleAsync(
             new SecuredRequest([]),
-            () => { calls++; return Task.FromResult("ok"); });
+            _ => { calls++; return Task.FromResult("ok"); });
 
         Assert.Equal(1, calls);
     }

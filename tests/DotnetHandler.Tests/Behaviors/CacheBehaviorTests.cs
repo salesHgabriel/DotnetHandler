@@ -13,15 +13,15 @@ public class CacheBehaviorTests
     private class CacheBehavior<TRequest, TResponse>(IMemoryCache cache)
         : IPipelineBehavior<TRequest, TResponse>
     {
-        public async Task<TResponse> HandleAsync(TRequest request, Func<Task<TResponse>> next)
+        public async Task<TResponse> HandleAsync(TRequest request, Func<CancellationToken, Task<TResponse>> next, CancellationToken cancellationToken = default)
         {
             if (request is not ICacheableRequest<TResponse> cacheable)
-                return await next();
+                return await next(cancellationToken);
 
             if (cache.TryGetValue(cacheable.CacheKey, out TResponse? cached))
                 return cached!;
 
-            var result = await next();
+            var result = await next(cancellationToken);
             cache.Set(cacheable.CacheKey, result, cacheable.CacheDuration ?? TimeSpan.FromMinutes(5));
             return result;
         }
@@ -46,8 +46,8 @@ public class CacheBehaviorTests
         var behavior = new CacheBehavior<PlainQuery, string>(NewCache());
         var calls = 0;
 
-        await behavior.HandleAsync(new PlainQuery("x"), () => { calls++; return Task.FromResult("x"); });
-        await behavior.HandleAsync(new PlainQuery("x"), () => { calls++; return Task.FromResult("x"); });
+        await behavior.HandleAsync(new PlainQuery("x"), _ => { calls++; return Task.FromResult("x"); });
+        await behavior.HandleAsync(new PlainQuery("x"), _ => { calls++; return Task.FromResult("x"); });
 
         Assert.Equal(2, calls);
     }
@@ -60,7 +60,7 @@ public class CacheBehaviorTests
 
         var result = await behavior.HandleAsync(
             new CachableQuery("k1", "hello"),
-            () => { calls++; return Task.FromResult("hello"); });
+            _ => { calls++; return Task.FromResult("hello"); });
 
         Assert.Equal(1, calls);
         Assert.Equal("hello", result);
@@ -73,8 +73,8 @@ public class CacheBehaviorTests
         var behavior = new CacheBehavior<CachableQuery, string>(cache);
         var calls = 0;
 
-        await behavior.HandleAsync(new CachableQuery("k2", "first"), () => { calls++; return Task.FromResult("first"); });
-        var second = await behavior.HandleAsync(new CachableQuery("k2", "ignored"), () => { calls++; return Task.FromResult("ignored"); });
+        await behavior.HandleAsync(new CachableQuery("k2", "first"), _ => { calls++; return Task.FromResult("first"); });
+        var second = await behavior.HandleAsync(new CachableQuery("k2", "ignored"), _ => { calls++; return Task.FromResult("ignored"); });
 
         Assert.Equal(1, calls);
         Assert.Equal("first", second);
@@ -87,8 +87,8 @@ public class CacheBehaviorTests
         var behavior = new CacheBehavior<CachableQuery, string>(cache);
         var calls = 0;
 
-        await behavior.HandleAsync(new CachableQuery("key-a", "a"), () => { calls++; return Task.FromResult("a"); });
-        await behavior.HandleAsync(new CachableQuery("key-b", "b"), () => { calls++; return Task.FromResult("b"); });
+        await behavior.HandleAsync(new CachableQuery("key-a", "a"), _ => { calls++; return Task.FromResult("a"); });
+        await behavior.HandleAsync(new CachableQuery("key-b", "b"), _ => { calls++; return Task.FromResult("b"); });
 
         Assert.Equal(2, calls);
     }
@@ -99,12 +99,12 @@ public class CacheBehaviorTests
         var cache = NewCache();
         var behavior = new CacheBehavior<CachableQuery, string>(cache);
 
-        await behavior.HandleAsync(new CachableQuery("k3", "v", TimeSpan.FromMilliseconds(1)), () => Task.FromResult("v"));
+        await behavior.HandleAsync(new CachableQuery("k3", "v", TimeSpan.FromMilliseconds(1)), _ => Task.FromResult("v"));
 
         await Task.Delay(50);
 
         var calls = 0;
-        await behavior.HandleAsync(new CachableQuery("k3", "v2"), () => { calls++; return Task.FromResult("v2"); });
+        await behavior.HandleAsync(new CachableQuery("k3", "v2"), _ => { calls++; return Task.FromResult("v2"); });
 
         Assert.Equal(1, calls);
     }

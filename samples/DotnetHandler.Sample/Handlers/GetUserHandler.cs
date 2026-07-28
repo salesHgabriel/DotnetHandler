@@ -13,9 +13,9 @@ public record GetUserQuery(Guid Id) : IRequest<UserResponse?>, ICacheableRequest
 
 public class GetUserHandler(AppDbContext db) : IRequestHandler<GetUserQuery, UserResponse?>
 {
-    public async Task<UserResponse?> HandleAsync(GetUserQuery request)
+    public async Task<UserResponse?> HandleAsync(GetUserQuery request, CancellationToken cancellationToken = default)
     {
-        var user = await db.Users.AsNoTracking().FirstOrDefaultAsync(u => u.Id == request.Id);
+        var user = await db.Users.AsNoTracking().FirstOrDefaultAsync(u => u.Id == request.Id, cancellationToken);
         return user is null ? null : new UserResponse(user.Id, user.Name, user.Email);
     }
 }

@@ -12,14 +12,14 @@ public class LoggingBehavior<TRequest, TResponse> : IPipelineBehavior<TRequest, 
         _logger = logger;
     }
 
-    public async Task<TResponse> HandleAsync(TRequest request, Func<Task<TResponse>> next)
+    public async Task<TResponse> HandleAsync(TRequest request, Func<CancellationToken, Task<TResponse>> next, CancellationToken cancellationToken = default)
     {
         var requestName = typeof(TRequest).Name;
         var sw = Stopwatch.StartNew();
 
         _logger.LogInformation("Handling {Request}", requestName);
 
-        var result = await next();
+        var result = await next(cancellationToken);
 
         _logger.LogInformation("Handled {Request} in {Elapsed}ms", requestName, sw.ElapsedMilliseconds);
 

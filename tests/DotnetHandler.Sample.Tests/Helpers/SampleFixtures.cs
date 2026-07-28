@@ -39,55 +39,55 @@ public record DeleteUserCommand(Guid Id) : IRequest<bool>;
 
 public class CreateUserHandler(TestDbContext db) : IRequestHandler<CreateUserCommand, UserResponse>
 {
-    public async Task<UserResponse> HandleAsync(CreateUserCommand request)
+    public async Task<UserResponse> HandleAsync(CreateUserCommand request, CancellationToken cancellationToken = default)
     {
         var user = new User { Name = request.Name, Email = request.Email };
         db.Users.Add(user);
-        await db.SaveChangesAsync();
+        await db.SaveChangesAsync(cancellationToken);
         return new UserResponse(user.Id, user.Name, user.Email);
     }
 }
 
 public class GetUserHandler(TestDbContext db) : IRequestHandler<GetUserQuery, UserResponse?>
 {
-    public async Task<UserResponse?> HandleAsync(GetUserQuery request)
+    public async Task<UserResponse?> HandleAsync(GetUserQuery request, CancellationToken cancellationToken = default)
     {
-        var user = await db.Users.AsNoTracking().FirstOrDefaultAsync(u => u.Id == request.Id);
+        var user = await db.Users.AsNoTracking().FirstOrDefaultAsync(u => u.Id == request.Id, cancellationToken);
         return user is null ? null : new UserResponse(user.Id, user.Name, user.Email);
     }
 }
 
 public class GetUsersHandler(TestDbContext db) : IRequestHandler<GetUsersQuery, List<UserResponse>>
 {
-    public async Task<List<UserResponse>> HandleAsync(GetUsersQuery _) =>
+    public async Task<List<UserResponse>> HandleAsync(GetUsersQuery _, CancellationToken cancellationToken = default) =>
         await db.Users.AsNoTracking()
             .Select(u => new UserResponse(u.Id, u.Name, u.Email))
-            .ToListAsync();
+            .ToListAsync(cancellationToken);
 }
 
 public class UpdateUserHandler(TestDbContext db) : IRequestHandler<UpdateUserCommand, UserResponse?>
 {
-    public async Task<UserResponse?> HandleAsync(UpdateUserCommand request)
+    public async Task<UserResponse?> HandleAsync(UpdateUserCommand request, CancellationToken cancellationToken = default)
     {
-        var user = await db.Users.FirstOrDefaultAsync(u => u.Id == request.Id);
+        var user = await db.Users.FirstOrDefaultAsync(u => u.Id == request.Id, cancellationToken);
         if (user is null) return null;
 
         user.Name = request.Name;
         user.Email = request.Email;
-        await db.SaveChangesAsync();
+        await db.SaveChangesAsync(cancellationToken);
         return new UserResponse(user.Id, user.Name, user.Email);
     }
 }
 
 public class DeleteUserHandler(TestDbContext db) : IRequestHandler<DeleteUserCommand, bool>
 {
-    public async Task<bool> HandleAsync(DeleteUserCommand request)
+    public async Task<bool> HandleAsync(DeleteUserCommand request, CancellationToken cancellationToken = default)
     {
-        var user = await db.Users.FirstOrDefaultAsync(u => u.Id == request.Id);
+        var user = await db.Users.FirstOrDefaultAsync(u => u.Id == request.Id, cancellationToken);
         if (user is null) return false;
 
         db.Users.Remove(user);
-        await db.SaveChangesAsync();
+        await db.SaveChangesAsync(cancellationToken);
         return true;
     }
 }
@@ -121,12 +121,12 @@ public class UpdateUserCommandValidator : AbstractValidator<UpdateUserCommand>
 public class FluentValidationBehavior<TRequest, TResponse>(IEnumerable<IValidator<TRequest>> validators)
     : IPipelineBehavior<TRequest, TResponse>
 {
-    public async Task<TResponse> HandleAsync(TRequest request, Func<Task<TResponse>> next)
+    public async Task<TResponse> HandleAsync(TRequest request, Func<CancellationToken, Task<TResponse>> next, CancellationToken cancellationToken = default)
     {
         var errors = new List<string>();
         foreach (var v in validators)
         {
-            var result = await v.ValidateAsync(request);
+            var result = await v.ValidateAsync(request, cancellationToken);
             if (!result.IsValid)
                 errors.AddRange(result.Errors.Select(e => e.ErrorMessage));
         }
@@ -134,7 +134,7 @@ public class FluentValidationBehavior<TRequest, TResponse>(IEnumerable<IValidato
         if (errors.Count > 0)
             throw new HandlerValidationException(errors.ToArray());
 
-        return await next();
+        return await next(cancellationToken);
     }
 }
 

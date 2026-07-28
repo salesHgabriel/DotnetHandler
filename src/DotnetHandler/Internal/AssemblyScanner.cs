@@ -7,8 +7,6 @@ namespace DotnetHandler.Internal;
 
 internal static class AssemblyScanner
 {
-    private static readonly HashSet<(Type Service, Type Implementation)> _registered = new();
-
     internal static void Scan(IServiceCollection services, Assembly assembly, HandlerWrapperRegistry registry)
     {
         var concreteTypes = assembly.GetTypes()
@@ -17,7 +15,7 @@ internal static class AssemblyScanner
         foreach (var type in concreteTypes)
         {
             RegisterHandlers(services, assembly, registry, type);
-            RegisterListeners(services, type);
+            RegisterListeners(services, registry, type);
         }
     }
 
@@ -29,9 +27,7 @@ internal static class AssemblyScanner
 
         foreach (var iface in handlerInterfaces)
         {
-            var key = (iface, type);
-            if (_registered.Contains(key)) continue;
-            _registered.Add(key);
+            if (!registry.TryMarkScanned(iface, type)) continue;
             services.AddScoped(iface, type);
 
             var args = iface.GetGenericArguments(); // [TRequest, TResponse]
@@ -41,7 +37,7 @@ internal static class AssemblyScanner
         }
     }
 
-    private static void RegisterListeners(IServiceCollection services, Type type)
+    private static void RegisterListeners(IServiceCollection services, HandlerWrapperRegistry registry, Type type)
     {
         var listenerInterfaces = type.GetInterfaces()
             .Where(i => i.IsGenericType &&
@@ -49,9 +45,7 @@ internal static class AssemblyScanner
 
         foreach (var iface in listenerInterfaces)
         {
-            var key = (iface, type);
-            if (_registered.Contains(key)) continue;
-            _registered.Add(key);
+            if (!registry.TryMarkScanned(iface, type)) continue;
             services.AddScoped(iface, type);
         }
     }

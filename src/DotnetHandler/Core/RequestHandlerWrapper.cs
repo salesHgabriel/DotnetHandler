@@ -7,28 +7,28 @@ namespace DotnetHandler.Core;
 internal sealed class RequestHandlerWrapper<TRequest, TResponse> : IRequestHandlerWrapper<TResponse>
     where TRequest : IRequest<TResponse>
 {
-    public async Task<TResponse> HandleAsync(IRequest<TResponse> request, IServiceProvider services)
+    public async Task<TResponse> HandleAsync(IRequest<TResponse> request, IServiceProvider services, CancellationToken cancellationToken)
     {
         var typed = (TRequest)request;
         var handler = services.GetRequiredService<IRequestHandler<TRequest, TResponse>>();
 
         if (handler is IValidationHandler<TRequest> vh)
         {
-            var validationResult = await vh.ValidateAsync(typed);
+            var validationResult = await vh.ValidateAsync(typed, cancellationToken);
             if (!validationResult.IsValid)
                 throw new ValidationException(validationResult.Errors);
         }
 
         var behaviors = services.GetServices<IPipelineBehavior<TRequest, TResponse>>().ToList();
 
-        Func<Task<TResponse>> next = () => handler.HandleAsync(typed);
+        Func<CancellationToken, Task<TResponse>> next = ct => handler.HandleAsync(typed, ct);
         for (int i = behaviors.Count - 1; i >= 0; i--)
         {
             var behavior = behaviors[i];
             var currentNext = next;
-            next = () => behavior.HandleAsync(typed, currentNext);
+            next = ct => behavior.HandleAsync(typed, currentNext, ct);
         }
 
-        return await next();
+        return await next(cancellationToken);
     }
 }

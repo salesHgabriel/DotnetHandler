@@ -13,16 +13,16 @@ public record DeleteUserCommand(Guid Id) : IRequest<bool>, IAuthorizedRequest
 public class DeleteUserHandler(AppDbContext db, IDispatcher dispatcher)
     : IRequestHandler<DeleteUserCommand, bool>
 {
-    public async Task<bool> HandleAsync(DeleteUserCommand request)
+    public async Task<bool> HandleAsync(DeleteUserCommand request, CancellationToken cancellationToken = default)
     {
-        var user = await db.Users.FirstOrDefaultAsync(u => u.Id == request.Id);
+        var user = await db.Users.FirstOrDefaultAsync(u => u.Id == request.Id, cancellationToken);
         if (user is null)
             return false;
 
         db.Users.Remove(user);
-        await db.SaveChangesAsync();
+        await db.SaveChangesAsync(cancellationToken);
 
-        await dispatcher.Publish(new UserDeletedEvent(user.Id, user.Email));
+        await dispatcher.Publish(new UserDeletedEvent(user.Id, user.Email), cancellationToken);
 
         return true;
     }

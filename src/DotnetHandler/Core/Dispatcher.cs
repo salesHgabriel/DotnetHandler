@@ -14,16 +14,16 @@ internal sealed class Dispatcher : IDispatcher
         _registry = registry;
     }
 
-    public Task<TResponse> Send<TResponse>(IRequest<TResponse> request)
+    public Task<TResponse> Send<TResponse>(IRequest<TResponse> request, CancellationToken cancellationToken = default)
     {
         var wrapper = _registry.GetWrapper<TResponse>(request.GetType());
-        return wrapper.HandleAsync(request, _services);
+        return wrapper.HandleAsync(request, _services, cancellationToken);
     }
 
-    public async Task Publish<TEvent>(TEvent @event) where TEvent : IEvent
+    public async Task Publish<TEvent>(TEvent @event, CancellationToken cancellationToken = default) where TEvent : IEvent
     {
         var listeners = _services.GetServices<IEventListener<TEvent>>();
         foreach (var listener in listeners)
-            await listener.HandleAsync(@event);
+            await listener.HandleAsync(@event, cancellationToken);
     }
 }
