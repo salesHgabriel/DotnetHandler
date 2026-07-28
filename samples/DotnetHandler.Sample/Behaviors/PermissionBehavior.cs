@@ -6,10 +6,10 @@ namespace DotnetHandler.Sample.Behaviors;
 public class PermissionBehavior<TRequest, TResponse>(IPermissionContext permissionContext)
     : IPipelineBehavior<TRequest, TResponse>
 {
-    public async Task<TResponse> HandleAsync(TRequest request, Func<Task<TResponse>> next)
+    public async Task<TResponse> HandleAsync(TRequest request, Func<CancellationToken, Task<TResponse>> next, CancellationToken cancellationToken = default)
     {
         if (request is not IAuthorizedRequest authorizedRequest)
-            return await next();
+            return await next(cancellationToken);
 
         foreach (var permission in authorizedRequest.RequiredPermissions)
         {
@@ -17,6 +17,6 @@ public class PermissionBehavior<TRequest, TResponse>(IPermissionContext permissi
                 throw new UnauthorizedException(permission);
         }
 
-        return await next();
+        return await next(cancellationToken);
     }
 }

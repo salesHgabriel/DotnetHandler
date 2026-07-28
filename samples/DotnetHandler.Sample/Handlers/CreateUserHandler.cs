@@ -11,13 +11,13 @@ public record CreateUserCommand(string Name, string Email, string IdempotencyKey
 public class CreateUserHandler(AppDbContext db, IDispatcher dispatcher)
     : IRequestHandler<CreateUserCommand, UserResponse>
 {
-    public async Task<UserResponse> HandleAsync(CreateUserCommand request)
+    public async Task<UserResponse> HandleAsync(CreateUserCommand request, CancellationToken cancellationToken = default)
     {
         var user = new User { Name = request.Name, Email = request.Email };
         db.Users.Add(user);
-        await db.SaveChangesAsync();
+        await db.SaveChangesAsync(cancellationToken);
 
-        await dispatcher.Publish(new UserCreatedEvent(user));
+        await dispatcher.Publish(new UserCreatedEvent(user), cancellationToken);
 
         return new UserResponse(user.Id, user.Name, user.Email);
     }

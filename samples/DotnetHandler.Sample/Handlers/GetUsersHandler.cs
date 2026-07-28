@@ -13,11 +13,11 @@ public record GetUsersQuery : IRequest<List<UserResponse>>, ICacheableRequest<Li
 
 public class GetUsersHandler(AppDbContext db) : IRequestHandler<GetUsersQuery, List<UserResponse>>
 {
-    public async Task<List<UserResponse>> HandleAsync(GetUsersQuery request)
+    public async Task<List<UserResponse>> HandleAsync(GetUsersQuery request, CancellationToken cancellationToken = default)
     {
         return await db.Users
             .AsNoTracking()
             .Select(u => new UserResponse(u.Id, u.Name, u.Email))
-            .ToListAsync();
+            .ToListAsync(cancellationToken);
     }
 }

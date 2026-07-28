@@ -6,5 +6,5 @@ internal interface IRequestHandlerWrapper { }
 
 internal interface IRequestHandlerWrapper<TResponse> : IRequestHandlerWrapper
 {
-    Task<TResponse> HandleAsync(IRequest<TResponse> request, IServiceProvider services);
+    Task<TResponse> HandleAsync(IRequest<TResponse> request, IServiceProvider services, CancellationToken cancellationToken);
 }

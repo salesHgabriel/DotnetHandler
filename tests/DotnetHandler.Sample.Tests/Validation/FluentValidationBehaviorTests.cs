@@ -124,12 +124,12 @@ public class TrackingCreateUserHandler(TestDbContext db) : IRequestHandler<Creat
 {
     public static int CallCount { get; set; }
 
-    public async Task<UserResponse> HandleAsync(CreateUserCommand request)
+    public async Task<UserResponse> HandleAsync(CreateUserCommand request, CancellationToken cancellationToken = default)
     {
         CallCount++;
         var user = new User { Name = request.Name, Email = request.Email };
         db.Users.Add(user);
-        await db.SaveChangesAsync();
+        await db.SaveChangesAsync(cancellationToken);
         return new UserResponse(user.Id, user.Name, user.Email);
     }
 }

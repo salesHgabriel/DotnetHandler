@@ -12,13 +12,13 @@ public static class UsersEndpoint
 {
     public static void RegisterUsersEndpoints(this WebApplication app)
     {
-        app.MapPost("/users", async (CreateUserBody body, IDispatcher dispatcher, HttpContext httpContext) =>
+        app.MapPost("/users", async (CreateUserBody body, IDispatcher dispatcher, HttpContext httpContext, CancellationToken cancellationToken) =>
         {
             var idempotencyKey = httpContext.Request.Headers["Idempotency-Key"].FirstOrDefault() ?? string.Empty;
             var cmd = new CreateUserCommand(body.Name, body.Email, idempotencyKey);
             try
             {
-                var result = await dispatcher.Send(cmd);
+                var result = await dispatcher.Send(cmd, cancellationToken);
                 return Results.Created($"/users/{result.Id}", result);
             }
             catch (ValidationException ex)
@@ -27,20 +27,20 @@ public static class UsersEndpoint
             }
         });
 
-        app.MapGet("/users", async (IDispatcher dispatcher) =>
-            Results.Ok(await dispatcher.Send(new GetUsersQuery())));
+        app.MapGet("/users", async (IDispatcher dispatcher, CancellationToken cancellationToken) =>
+            Results.Ok(await dispatcher.Send(new GetUsersQuery(), cancellationToken)));
 
-        app.MapGet("/users/{id:guid}", async (Guid id, IDispatcher dispatcher) =>
+        app.MapGet("/users/{id:guid}", async (Guid id, IDispatcher dispatcher, CancellationToken cancellationToken) =>
         {
-            var user = await dispatcher.Send(new GetUserQuery(id));
+            var user = await dispatcher.Send(new GetUserQuery(id), cancellationToken);
             return user is null ? Results.NotFound() : Results.Ok(user);
         });
 
-        app.MapPut("/users/{id:guid}", async (Guid id, UpdateUserCommand cmd, IDispatcher dispatcher) =>
+        app.MapPut("/users/{id:guid}", async (Guid id, UpdateUserCommand cmd, IDispatcher dispatcher, CancellationToken cancellationToken) =>
         {
             try
             {
-                var result = await dispatcher.Send(cmd with { Id = id });
+                var result = await dispatcher.Send(cmd with { Id = id }, cancellationToken);
                 return result is null ? Results.NotFound() : Results.Ok(result);
             }
             catch (ValidationException ex)
@@ -49,11 +49,11 @@ public static class UsersEndpoint
             }
         });
 
-        app.MapDelete("/users/{id:guid}", async (Guid id, IDispatcher dispatcher) =>
+        app.MapDelete("/users/{id:guid}", async (Guid id, IDispatcher dispatcher, CancellationToken cancellationToken) =>
         {
             try
             {
-                var deleted = await dispatcher.Send(new DeleteUserCommand(id));
+                var deleted = await dispatcher.Send(new DeleteUserCommand(id), cancellationToken);
                 return deleted ? Results.NoContent() : Results.NotFound();
             }
             catch (UnauthorizedException ex)

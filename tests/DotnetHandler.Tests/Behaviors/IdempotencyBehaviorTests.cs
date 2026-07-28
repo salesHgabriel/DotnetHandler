@@ -13,16 +13,16 @@ public class IdempotencyBehaviorTests
     private class IdempotencyBehavior<TRequest, TResponse>(IMemoryCache cache)
         : IPipelineBehavior<TRequest, TResponse>
     {
-        public async Task<TResponse> HandleAsync(TRequest request, Func<Task<TResponse>> next)
+        public async Task<TResponse> HandleAsync(TRequest request, Func<CancellationToken, Task<TResponse>> next, CancellationToken cancellationToken = default)
         {
             if (request is not IIdempotentRequest idempotent || string.IsNullOrWhiteSpace(idempotent.IdempotencyKey))
-                return await next();
+                return await next(cancellationToken);
 
             var key = $"idempotency:{idempotent.IdempotencyKey}";
             if (cache.TryGetValue(key, out TResponse? stored))
                 return stored!;
 
-            var result = await next();
+            var result = await next(cancellationToken);
             cache.Set(key, result, TimeSpan.FromHours(24));
             return result;
         }
@@ -43,8 +43,8 @@ public class IdempotencyBehaviorTests
         var behavior = new IdempotencyBehavior<PlainCommand, string>(NewCache());
         var calls = 0;
 
-        await behavior.HandleAsync(new PlainCommand("x"), () => { calls++; return Task.FromResult("x"); });
-        await behavior.HandleAsync(new PlainCommand("x"), () => { calls++; return Task.FromResult("x"); });
+        await behavior.HandleAsync(new PlainCommand("x"), _ => { calls++; return Task.FromResult("x"); });
+        await behavior.HandleAsync(new PlainCommand("x"), _ => { calls++; return Task.FromResult("x"); });
 
         Assert.Equal(2, calls);
     }
@@ -55,8 +55,8 @@ public class IdempotencyBehaviorTests
         var behavior = new IdempotencyBehavior<IdempotentCommand, string>(NewCache());
         var calls = 0;
 
-        await behavior.HandleAsync(new IdempotentCommand("", "x"), () => { calls++; return Task.FromResult("x"); });
-        await behavior.HandleAsync(new IdempotentCommand("", "x"), () => { calls++; return Task.FromResult("x"); });
+        await behavior.HandleAsync(new IdempotentCommand("", "x"), _ => { calls++; return Task.FromResult("x"); });
+        await behavior.HandleAsync(new IdempotentCommand("", "x"), _ => { calls++; return Task.FromResult("x"); });
 
         Assert.Equal(2, calls);
     }
@@ -69,7 +69,7 @@ public class IdempotencyBehaviorTests
 
         var result = await behavior.HandleAsync(
             new IdempotentCommand("key-1", "created"),
-            () => { calls++; return Task.FromResult("created"); });
+            _ => { calls++; return Task.FromResult("created"); });
 
         Assert.Equal(1, calls);
         Assert.Equal("created", result);
@@ -82,8 +82,8 @@ public class IdempotencyBehaviorTests
         var behavior = new IdempotencyBehavior<IdempotentCommand, string>(cache);
         var calls = 0;
 
-        await behavior.HandleAsync(new IdempotentCommand("key-2", "first"), () => { calls++; return Task.FromResult("first"); });
-        var second = await behavior.HandleAsync(new IdempotentCommand("key-2", "second"), () => { calls++; return Task.FromResult("second"); });
+        await behavior.HandleAsync(new IdempotentCommand("key-2", "first"), _ => { calls++; return Task.FromResult("first"); });
+        var second = await behavior.HandleAsync(new IdempotentCommand("key-2", "second"), _ => { calls++; return Task.FromResult("second"); });
 
         Assert.Equal(1, calls);
         Assert.Equal("first", second);
@@ -96,8 +96,8 @@ public class IdempotencyBehaviorTests
         var behavior = new IdempotencyBehavior<IdempotentCommand, string>(cache);
         var calls = 0;
 
-        await behavior.HandleAsync(new IdempotentCommand("key-a", "a"), () => { calls++; return Task.FromResult("a"); });
-        await behavior.HandleAsync(new IdempotentCommand("key-b", "b"), () => { calls++; return Task.FromResult("b"); });
+        await behavior.HandleAsync(new IdempotentCommand("key-a", "a"), _ => { calls++; return Task.FromResult("a"); });
+        await behavior.HandleAsync(new IdempotentCommand("key-b", "b"), _ => { calls++; return Task.FromResult("b"); });
 
         Assert.Equal(2, calls);
     }
@@ -108,8 +108,8 @@ public class IdempotencyBehaviorTests
         var behavior = new IdempotencyBehavior<IdempotentCommand, string>(NewCache());
         var calls = 0;
 
-        await behavior.HandleAsync(new IdempotentCommand("   ", "x"), () => { calls++; return Task.FromResult("x"); });
-        await behavior.HandleAsync(new IdempotentCommand("   ", "x"), () => { calls++; return Task.FromResult("x"); });
+        await behavior.HandleAsync(new IdempotentCommand("   ", "x"), _ => { calls++; return Task.FromResult("x"); });
+        await behavior.HandleAsync(new IdempotentCommand("   ", "x"), _ => { calls++; return Task.FromResult("x"); });
 
         Assert.Equal(2, calls);
     }

@@ -12,7 +12,7 @@ public class SendWelcomeSmsListener : IEventListener<UserCreatedEvent>
         _logger = logger;
     }
 
-    public Task HandleAsync(UserCreatedEvent @event)
+    public Task HandleAsync(UserCreatedEvent @event, CancellationToken cancellationToken = default)
     {
         _logger.LogInformation(
             "Welcome SMS sent to {Name} <{Email}>",

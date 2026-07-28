@@ -2,5 +2,5 @@ namespace DotnetHandler.Abstractions;
 
 public interface IEventListener<TEvent>
 {
-    Task HandleAsync(TEvent @event);
+    Task HandleAsync(TEvent @event, CancellationToken cancellationToken = default);
 }

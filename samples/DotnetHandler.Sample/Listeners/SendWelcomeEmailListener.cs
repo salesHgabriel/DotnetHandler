@@ -12,7 +12,7 @@ namespace DotnetHandler.Sample.Listeners
             _logger = logger;
         }
 
-        public Task HandleAsync(UserCreatedEvent @event)
+        public Task HandleAsync(UserCreatedEvent @event, CancellationToken cancellationToken = default)
         {
             _logger.LogInformation(
                 "Welcome email sent to {Name} <{Email}>",

@@ -4,5 +4,5 @@ namespace DotnetHandler.Abstractions;
 
 public interface IValidationHandler<TRequest>
 {
-    Task<ValidationResult> ValidateAsync(TRequest request);
+    Task<ValidationResult> ValidateAsync(TRequest request, CancellationToken cancellationToken = default);
 }

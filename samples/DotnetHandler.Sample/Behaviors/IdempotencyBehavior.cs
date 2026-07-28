@@ -8,17 +8,17 @@ public class IdempotencyBehavior<TRequest, TResponse>(IMemoryCache cache)
 {
     private static readonly TimeSpan DefaultRetention = TimeSpan.FromHours(24);
 
-    public async Task<TResponse> HandleAsync(TRequest request, Func<Task<TResponse>> next)
+    public async Task<TResponse> HandleAsync(TRequest request, Func<CancellationToken, Task<TResponse>> next, CancellationToken cancellationToken = default)
     {
         if (request is not IIdempotentRequest idempotent || string.IsNullOrWhiteSpace(idempotent.IdempotencyKey))
-            return await next();
+            return await next(cancellationToken);
 
         var key = $"idempotency:{idempotent.IdempotencyKey}";
 
         if (cache.TryGetValue(key, out TResponse? stored))
             return stored!;
 
-        var result = await next();
+        var result = await next(cancellationToken);
         cache.Set(key, result, DefaultRetention);
         return result;
     }
