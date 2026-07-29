@@ -35,6 +35,14 @@
                       OutputItemType="Analyzer" />
   </ItemGroup>
 
+  <!-- dotnet pack does not automatically include a ProjectReference's analyzer output in the nupkg,
+       so the generator DLL must be added to the package explicitly under analyzers/dotnet/cs. -->
+  <Target Name="_AddAnalyzerToPackage" BeforeTargets="_GetPackageFiles">
+    <ItemGroup>
+      <None Include="@(Analyzer)" Pack="true" PackagePath="analyzers/dotnet/cs" Visible="false" />
+    </ItemGroup>
+  </Target>
+
   <ItemGroup>
     <None Include="..\..\README.md">
       <Pack>True</Pack>
